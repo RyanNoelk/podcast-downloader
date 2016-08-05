@@ -113,3 +113,11 @@ def has_mail_users(cur, conn):
         return 0
     else:
         return 1
+
+
+def does_database_exist(curr_loc):
+    db_name = "PodGrab.db"
+    if os.path.exists(curr_loc + os.sep + db_name):
+        return 1
+    else:
+        return 0
