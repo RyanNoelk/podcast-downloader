@@ -18,14 +18,12 @@
 #   worry, they've downloaded. 
 
 
-import os
 import sys
 import argparse
 import urllib2
 import xml.dom.minidom
 import datetime
 from time import gmtime, strftime, strptime, mktime
-import sqlite3
 import shutil
 import smtplib
 import httplib
@@ -34,6 +32,7 @@ import traceback
 import socket
 
 from code.settings import *
+from code.db import *
 
 
 def main(argv):
@@ -65,9 +64,6 @@ def main(argv):
     parser.add_argument('-u', '--update', action="store_const", const="UPDATE", dest="update_subs", help='Updates all current Podcast subscriptions')
     parser.add_argument('-ml', '--mail-list', action="store_const", const="MAIL", dest="list_mail", help='Lists all current mail addresses')
 
-    parser.add_argument('-io', '--import', action="store", dest="opml_import", help='Import subscriptions from OPML file')
-    parser.add_argument('-eo', '--export', action="store_const", const="OPML_EXPORT", dest="opml_export", help='Export subscriptions to OPML file')
-    
     arguments = parser.parse_args()
     
     if arguments.sub_feed_url:
@@ -103,11 +99,6 @@ def main(argv):
         mode = MODE_MAIL_DELETE
     elif arguments.list_mail:
         mode = MODE_MAIL_LIST
-    elif arguments.opml_import:
-        import_file_name = arguments.opml_import
-        mode = MODE_IMPORT
-    elif arguments.opml_export:
-        mode = MODE_EXPORT
     else:
         error_string = "No Arguments supplied - for usage run 'PodGrab.py -h'"
         has_error = 1
@@ -191,10 +182,6 @@ def main(argv):
             print "E-Mail address: " + mail_address + " has been deleted"
         elif mode == MODE_MAIL_LIST:
             list_mail_addresses(cursor, connection)
-        elif mode == MODE_EXPORT:
-            export_opml_file(cursor, connection, current_directory)
-        elif mode == MODE_IMPORT:
-            import_opml_file(cursor, connection, current_directory, download_directory, import_file_name)
     else:
         print "Sorry, there was some sort of error: '" + error_string + "'\nExiting...\n"
         if connection:
@@ -220,68 +207,6 @@ def open_datasource(xml_url):
         return response.read()
     else:
         return response
-
-def export_opml_file(cur, conn, cur_dir):
-    item_count = 0
-    feed_name = ""
-    feed_url = ""
-    last_ep = ""
-    now = datetime.datetime.now()
-    file_name = cur_dir + os.sep + "podgrab_subscriptions-" + str(now.year) + "-" + str(now.month) + "-" + str(now.day) + ".opml"
-    subs = get_subscriptions(cur, conn)
-    file_handle = open(file_name,"w")
-    print "Exporting RSS subscriptions database to: '" + file_name + "' OPML file...please wait.\n"
-    header = "<opml version=\"2.0\">\n<head>\n\t<title>PodGrab Subscriptions</title>\n</head>\n<body>\n"
-    file_handle.writelines(header)
-    for sub in subs:
-        feed_name = sub[0]
-        feed_url = sub[1]
-        last_ep = sub[2]
-        file_handle.writelines("\t<outline title=\"" + feed_name + "\" text=\"" + feed_name + "\" type=\"rss\" xmlUrl=\"" + feed_url + "\" htmlUrl=\"" + feed_url + "\"/>\n")
-        print "Exporting subscription '" + feed_name + "'...Done.\n"
-        item_count = item_count + 1
-    footer = "</body>\n</opml>"
-    file_handle.writelines(footer)
-    file_handle.close()
-    print str(item_count) + " item(s) exported to: '" + file_name + "'. COMPLETE"
-
-
-def import_opml_file(cur, conn, cur_dir, download_dir, import_file):
-    count = 0
-    print "Importing OPML file '" + import_file + "'..."
-    if import_file.startswith("/") or import_file.startswith(".."):
-        data = open_datasource(import_file)
-        if not data:
-            print "ERROR = Could not open OPML file '" + import_file + "'"
-    else:
-        data = open_datasource(cur_dir + os.sep + import_file)
-        if not data:
-            print "ERROR - Could not open OPML file '" + cur_dir + os.sep + import_file + "'"
-    if data:
-        print "File opened...please wait"
-        try:
-            xml_data = xml.dom.minidom.parseString(data)
-            items = xml_data.getElementsByTagName('outline')
-            for item in items:
-                item_feed = item.getAttribute('xmlUrl')
-                item_name = item.getAttribute('title')
-                item_name = clean_string(item_name)
-                print "Subscription Title: " + item_name
-                print "Subscription Feed: " + item_feed
-                item_directory = download_dir + os.sep + item_name
-            
-                if not os.path.exists(item_directory):
-                    os.makedirs(item_directory)
-                if not does_sub_exist(cur, conn, item_feed):
-                    insert_subscription(cur, conn, item_name, item_feed)
-                    count = count + 1
-                else:
-                    print "This subscription is already present in the database. Skipping..."
-                print "\n"
-            print "\nA total of " + str(count) + " subscriptions have been added from OPML file: '" + import_file + "'"
-            print "These will be updated on the next update run.\n"
-        except xml.parsers.expat.ExpatError:
-            print "ERROR - Malformed XML syntax in feed. Skipping..."
 
 
 def iterate_feed(data, mode, download_dir, today, cur, conn, feed):
@@ -396,39 +321,6 @@ def does_database_exist(curr_loc):
         return 0
 
 
-def add_mail_user(cur, conn, address):
-    row = (address,)
-    cur.execute('INSERT INTO email(address) VALUES (?)', row)
-    conn.commit()
-
-
-def delete_mail_user(cur, conn, address):
-    row = (address,)
-    cur.execute('DELETE FROM email WHERE address = ?', row)
-    conn.commit()
-
-
-def get_mail_users(cur, conn):
-    cur.execute('SELECT address FROM email')
-    return cur.fetchall()
-
-
-def list_mail_addresses(cur, conn):
-    cur.execute('SELECT * from email')
-    result = cur.fetchall()
-    print "Listing mail addresses..."
-    for address in result:
-        print "Address:\t" + address[0]
-
-
-def has_mail_users(cur, conn):
-    cur.execute('SELECT COUNT(*) FROM email')
-    if cur.fetchone() == "0":
-        return 0
-    else:
-        return 1
-
-
 def mail_updates(cur, conn, mess, num_updates):
     addresses = get_mail_users(cur, conn)
     for address in addresses:
@@ -452,23 +344,6 @@ def mail(server_url=None, sender='', to='', subject='', text=''):
     mail_server.sendmail(sender, to, message)
     mail_server.quit()  
 
-
-def connect_database(curr_loc):
-    conn = sqlite3.connect(curr_loc + os.sep + "PodGrab.db")
-    return conn
-
-def setup_database(cur, conn):
-    cur.execute("CREATE TABLE subscriptions (channel text, feed text, last_ep text)")
-    cur.execute("CREATE TABLE email (address text)")
-    conn.commit()
-
-
-def insert_subscription(cur, conn, chan, feed):
-    chan.replace(' ', '-')
-    chan.replace('---','-')
-    row = (chan, feed, "NULL")
-    cur.execute('INSERT INTO subscriptions(channel, feed, last_ep) VALUES (?, ?, ?)', row)
-    conn.commit()
 
 
 def iterate_channel(chan, today, mode, cur, conn, feed, chan_dir):
@@ -565,66 +440,6 @@ def fix_date(date):
     return new_date.rstrip()
 
 
-def does_sub_exist(cur, conn, feed):
-    row = (feed,)
-    cur.execute('SELECT COUNT (*) FROM subscriptions WHERE feed = ?', row)
-    return_string = str(cur.fetchone())[1]
-    if return_string == "0":
-        return 0
-    else:
-        return 1
-
-
-def delete_subscription(cur, conn, url):
-    row = (url,)
-    cur.execute('DELETE FROM subscriptions WHERE feed = ?', row)
-    conn.commit()
-
-
-def get_name_from_feed(cur, conn, url):
-    row = (url,)
-    cur.execute('SELECT channel from subscriptions WHERE feed = ?', row)
-    return_string = cur.fetchone()
-    try:
-        return_string = ''.join(return_string)
-    except TypeError:
-        return_string = "None"
-    return str(return_string)
-
-
-def list_subscriptions(cur, conn):
-    count = 0
-    try:
-        result = cur.execute('SELECT * FROM subscriptions')
-        for sub in result:
-            print "Name:\t\t", sub[0]
-            print "Feed:\t\t", sub[1]
-            print "Last Ep:\t", sub[2], "\n"
-            count += 1
-        print str(count) + " subscriptions present"
-    except sqlite3.OperationalError:
-        print "There are no current subscriptions or there was an error"
-
-
-def get_subscriptions(cur, conn):
-    try:
-        cur.execute('SELECT * FROM subscriptions')
-        return cur.fetchall()
-    except sqlite3.OperationalError:
-        print "There are no current subscriptions"
-        return None
-
-
-def update_subscription(cur, conn, feed, date):
-    row = (date, feed)
-    cur.execute('UPDATE subscriptions SET last_ep = ? where feed = ?', row)
-    conn.commit()
-
-
-def get_last_subscription_downloaded(cur, conn, feed):
-    row = (feed,)
-    cur.execute('SELECT last_ep FROM subscriptions WHERE feed = ?', row)
-    return cur.fetchone()
 
 if __name__ == "__main__":
     main(sys.argv[1:])
