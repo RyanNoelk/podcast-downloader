@@ -28,12 +28,10 @@ from time import gmtime, strftime, strptime, mktime
 import sqlite3
 import shutil
 import smtplib
-from email.mime.text import MIMEText
+import httplib
 import platform
 import traceback
-import unicodedata
 import socket
-import errno
 
 
 MODE_NONE = 70
