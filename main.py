@@ -133,6 +133,7 @@ def main(argv):
             setup_database(cursor, connection)
             print "Database setup complete"
     if not os.path.exists(download_directory):
+        print download_directory
         print "Podcast download directory is missing. Creating..."
         try:
             os.mkdir(download_directory)
