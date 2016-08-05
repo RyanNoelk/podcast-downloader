@@ -47,7 +47,7 @@ def main(argv):
     message = ""
     mail = ""
     current_directory = os.path.realpath(os.path.dirname(sys.argv[0]))
-    download_directory = current_directory + os.sep + DOWNLOAD_DIRECTORY
+    download_directory = DOWNLOAD_DIRECTORY
     global total_items
     global total_size
     total_items = 0
