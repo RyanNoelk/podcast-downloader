@@ -40,23 +40,28 @@ def main(argv):
     mail = ""
     current_directory = os.path.realpath(os.path.dirname(sys.argv[0]))
     download_directory = DOWNLOAD_DIRECTORY
-    global total_items
-    global total_size
+    download_directory = "/Users/ryannoelk/code/podcast-downloader/podcasts"
     total_items = 0
     total_size = 0
     data = ""
 
+    # Arg list and help menu
     parser = argparse.ArgumentParser(description='A command line Podcast downloader for RSS XML feeds')
-    parser.add_argument('-s', '--subscribe', action="store", dest="sub_feed_url", help='Subscribe to the following XML feed and download latest podcast')
-    parser.add_argument('-d', '--download', action="store", dest="dl_feed_url", help='Bulk download all podcasts in the following XML feed or file')
-    parser.add_argument('-un', '--unsubscribe', action="store", dest="unsub_url", help='Unsubscribe from the following Podcast feed')
-    parser.add_argument('-ma', '--mail-add', action="store", dest="mail_address_add", help='Add a mail address to mail subscription updates to')
-    parser.add_argument('-md', '--mail-delete', action="store", dest="mail_address_delete", help='Delete a mail address')
-
-    parser.add_argument('-l', '--list', action="store_const", const="ALL", dest="list_subs", help='Lists current Podcast subscriptions')
-    parser.add_argument('-u', '--update', action="store_const", const="UPDATE", dest="update_subs", help='Updates all current Podcast subscriptions')
-    parser.add_argument('-ml', '--mail-list', action="store_const", const="MAIL", dest="list_mail", help='Lists all current mail addresses')
-
+    parser.add_argument('-s', '--subscribe',
+                        action="store", dest="sub_feed_url",
+                        help='Subscribe to the following XML feed and download latest podcast')
+    parser.add_argument('-un', '--unsubscribe', action="store", dest="unsub_url",
+                        help='Unsubscribe from the following Podcast feed')
+    parser.add_argument('-l', '--list', action="store_const", const="ALL", dest="list_subs",
+                        help='Lists current Podcast subscriptions')
+    parser.add_argument('-u', '--update', action="store_const", const="UPDATE", dest="update_subs",
+                        help='Updates all current Podcast subscriptions')
+    parser.add_argument('-ma', '--mail-add', action="store", dest="mail_address_add",
+                        help='Add a mail address to mail subscription updates to')
+    parser.add_argument('-md', '--mail-delete', action="store", dest="mail_address_delete",
+                        help='Delete a mail address')
+    parser.add_argument('-ml', '--mail-list', action="store_const", const="MAIL", dest="list_mail",
+                        help='Lists all current mail addresses')
     arguments = parser.parse_args()
     
     if arguments.sub_feed_url:
@@ -68,15 +73,6 @@ def main(argv):
         else:
             print "XML data source opened\n"
             mode = MODE_SUBSCRIBE
-    elif arguments.dl_feed_url:
-        feed_url = arguments.dl_feed_url
-        data = open_datasource(feed_url)
-        if not data:
-            error_string = "Not a valid XML file or URL feed!"
-            has_error = 1 
-        else:
-            print "XML data source opened\n"
-            mode = MODE_DOWNLOAD
     elif arguments.unsub_url:
         feed_url = arguments.unsub_url
         mode = MODE_UNSUBSCRIBE
@@ -137,7 +133,7 @@ def main(argv):
                 channel_directory = download_directory + os.sep + feed_name
                 print "Deleting '" + channel_directory + "'..."
                 delete_subscription(cursor, connection, feed_url)
-                try :
+                try:
                     shutil.rmtree(channel_directory)
                 except OSError:
                     print "Subscription directory has not been found - it might have been manually deleted" 
@@ -165,8 +161,6 @@ def main(argv):
             if has_mail_users(cursor, connection):
                 print "Have e-mail address(es) - attempting e-mail..."
                 mail_updates(cursor, connection, mail, str(total_items))
-        elif mode == MODE_DOWNLOAD or mode == MODE_SUBSCRIBE:
-            print iterate_feed(data, mode, download_directory, todays_date, cursor, connection, feed_url)
         elif mode == MODE_MAIL_ADD:
             add_mail_user(cursor, connection, mail_address)
             print "E-Mail address: " + mail_address + " has been added"

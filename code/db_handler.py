@@ -8,6 +8,15 @@ def connect_database(curr_loc):
     conn = sqlite3.connect(curr_loc + os.sep + "PodGrab.db")
     return conn
 
+
+def does_database_exist(curr_loc):
+    db_name = "PodGrab.db"
+    if os.path.exists(curr_loc + os.sep + db_name):
+        return 1
+    else:
+        return 0
+
+
 def setup_database(cur, conn):
     cur.execute("CREATE TABLE subscriptions (channel text, feed text, last_ep text)")
     cur.execute("CREATE TABLE email (address text)")
@@ -20,6 +29,7 @@ def insert_subscription(cur, conn, chan, feed):
     row = (chan, feed, "NULL")
     cur.execute('INSERT INTO subscriptions(channel, feed, last_ep) VALUES (?, ?, ?)', row)
     conn.commit()
+
 
 def delete_subscription(cur, conn, url):
     row = (url,)
@@ -82,6 +92,7 @@ def does_sub_exist(cur, conn, feed):
     else:
         return 1
 
+
 def add_mail_user(cur, conn, address):
     row = (address,)
     cur.execute('INSERT INTO email(address) VALUES (?)', row)
@@ -113,11 +124,3 @@ def has_mail_users(cur, conn):
         return 0
     else:
         return 1
-
-
-def does_database_exist(curr_loc):
-    db_name = "PodGrab.db"
-    if os.path.exists(curr_loc + os.sep + db_name):
-        return 1
-    else:
-        return 0

@@ -10,6 +10,7 @@ import socket
 from code.settings import *
 from code.db_handler import *
 
+
 def open_datasource(xml_url):
     try:
         response = urllib2.urlopen(xml_url)
@@ -73,8 +74,8 @@ def iterate_feed(data, mode, download_dir, today, cur, conn, feed):
 
 
 def iterate_channel(chan, today, mode, cur, conn, feed, chan_dir):
-    global total_items
-    global total_size
+    total_items = 0
+    total_size = 0
     NUM_MAX_DOWNLOADS = 4
     saved = 0
     num = 0
