@@ -6,6 +6,7 @@ import datetime
 from time import strptime, mktime
 import httplib
 import socket
+import settings
 
 from code.settings import *
 from code.db_handler import *
@@ -16,7 +17,7 @@ def open_datasource(xml_url):
         response = urllib2.urlopen(xml_url)
     except ValueError:
         try:
-            response = open(xml_url,'r')
+            response = open(xml_url, 'r')
         except ValueError:
             print "ERROR - Invalid feed!"
             response = False
@@ -26,7 +27,7 @@ def open_datasource(xml_url):
         except httplib.IncompleteRead:
             print "ERROR - Incomplete data read. Please try again later"
             response = False
-    if response != False:
+    if not response:
         return response.read()
     else:
         return response
@@ -47,11 +48,7 @@ def iterate_feed(data, mode, download_dir, today, cur, conn, feed):
             if not os.path.exists(channel_directory):
                 os.makedirs(channel_directory)
             print "Current Date: ", today
-            if mode == MODE_DOWNLOAD:
-                print "Bulk download. Processing..."
-                num_podcasts = iterate_channel(channel, today, mode, cur, conn, feed, channel_directory)
-                print "\n", num_podcasts, "have been downloaded"
-            elif mode == MODE_SUBSCRIBE:
+            if mode == MODE_SUBSCRIBE:
                 print "Feed to subscribe to: " + feed + ". Checking for database duplicate..."
                 if not does_sub_exist(cur, conn, feed):
                     print "Subscribe. Processing..."
@@ -72,12 +69,9 @@ def iterate_feed(data, mode, download_dir, today, cur, conn, feed):
     return message
 
 
-
 def iterate_channel(chan, today, mode, cur, conn, feed, chan_dir):
     total_items = 0
     total_size = 0
-    NUM_MAX_DOWNLOADS = 4
-    saved = 0
     num = 0
     size = 0
     last_ep = "NULL"
@@ -100,29 +94,12 @@ def iterate_channel(chan, today, mode, cur, conn, feed, chan_dir):
             struct_time_today = strptime(today, "%a, %d %b %Y %H:%M:%S")
             try:
                 struct_time_item = strptime(fix_date(item_date), "%a, %d %b %Y %H:%M:%S")
-                has_error = 0
             except TypeError:
-                has_error = 1
+                pass
             except ValueError:
-                has_error = 1
-            if mode == MODE_DOWNLOAD:
-                if not has_error:
-                    saved = write_podcast(item_file, chan_dir, item_date, item_type)
-                else:
-                    saved = 0
-                    print "This item has a badly formatted date. Cannot download!"
-                if saved > 0:
-                    print "\nTitle: " + item_title
-                    print "Date:  " + item_date
-                    print "File:  " + item_file
-                    print "Size:  " + item_size + " bytes"
-                    print "Downloading " + item_file + "..."
-                    num = num + saved
-                size = size + int(item_size)
-                total_size += size
-                total_items += num
-            elif mode == MODE_SUBSCRIBE or mode == MODE_UPDATE:
-                if (last_ep == "NULL"):
+                pass
+            if mode == MODE_SUBSCRIBE or mode == MODE_UPDATE:
+                if last_ep == "NULL":
                     last_ep = fix_date(item_date)
                     update_subscription(cur, conn, feed, last_ep)
                 try:
@@ -135,7 +112,8 @@ def iterate_channel(chan, today, mode, cur, conn, feed, chan_dir):
                     has_error = 1
                     print "This item has a badly formatted date. Cannot download!"
                 if not has_error:
-                    if mktime(struct_time_item) <= mktime(struct_time_today) and mktime(struct_time_item) >= mktime(struct_last_ep):
+                    if mktime(struct_time_item) <= mktime(struct_time_today) \
+                            and mktime(struct_time_item) >= mktime(struct_last_ep):
                         saved = write_podcast(item_file, chan_dir, item_date, item_type)
                         if saved > 0:
                             print "\nTitle: " + item_title
@@ -144,18 +122,22 @@ def iterate_channel(chan, today, mode, cur, conn, feed, chan_dir):
                             print "Size:  " + item_size + " bytes"
                             print "Type:  " + item_type
                             update_subscription(cur, conn, feed, fix_date(item_date))
-                            num = num + saved
-                            size = size + int(item_size)
+                            num += saved
+                            size += int(item_size)
                             total_size += size
                             total_items += num
-                        if (num >= NUM_MAX_DOWNLOADS):
-                            print "Maximum session download of " + str(NUM_MAX_DOWNLOADS) + " podcasts has been reached. Exiting."
+                        if num >= settings.NUMBER_OF_PODCASTS_TO_KEEP:
+                            print "Maximum session download of " \
+                                  + str(settings.NUMBER_OF_PODCASTS_TO_KEEP) \
+                                  + " podcasts has been reached. Exiting."
                             break
         except IndexError, e:
-            #traceback.print_exc()
-            print "This RSS item has no downloadable URL link for the podcast for '" + item_title  + "'. Skipping..."
+            # traceback.print_exc()
+            print "This RSS item has no downloadable URL link for the podcast for '" \
+                  + item_title + "'. Skipping..."
         except AttributeError, e:
-            print "This RSS item appears to have no data attribute for the podcast '" + item_title + "'. Skipping..."
+            print "This RSS item appears to have no data attribute for the podcast '" \
+                  + item_title + "'. Skipping..."
     return str(num) + " podcasts totalling " + str(size) + " bytes"
 
 
@@ -168,21 +150,20 @@ def clean_string(str):
     new_string_final = ''
     for c in new_string:
         if c.isalnum() or c == "-" or c == "." or c.isspace():
-            new_string_final = new_string_final + ''.join(c)
+            new_string_final += ''.join(c)
         new_string_final = new_string_final.strip()
-        new_string_final = new_string_final.replace(' ','-')
-        new_string_final = new_string_final.replace('---','-')
-        new_string_final = new_string_final.replace('--','-')
+        new_string_final = new_string_final.replace(' ', '-')
+        new_string_final = new_string_final.replace('---', '-')
+        new_string_final = new_string_final.replace('--', '-')
     return new_string_final
 
 
 def fix_date(date):
     new_date = ""
     split_array = date.split(' ')
-    for i in range(0,5):
+    for i in range(0, 5):
         new_date = new_date + split_array[i] + " "
     return new_date.rstrip()
-
 
 
 def write_podcast(item, chan_loc, date, type):
@@ -194,28 +175,28 @@ def write_podcast(item, chan_loc, date, type):
     local_file = chan_loc + os.sep + clean_string(item_file_name)
     if type == "video/quicktime" or type == "audio/mp4" or type == "video/mp4":
         if not local_file.endswith(".mp4"):
-            local_file = local_file + ".mp4"
+            local_file += ".mp4"
     elif type == "video/mpeg":
         if not local_file.endswith(".mpg"):
-            local_file = local_file + ".mpg"
+            local_file += ".mpg"
     elif type == "video/x-flv":
         if not local_file.endswith(".flv"):
-            local_file = local_file + ".flv"
+            local_file += ".flv"
     elif type == "video/x-ms-wmv":
         if not local_file.endswith(".wmv"):
-            local_file = local_file + ".wmv"
+            local_file += ".wmv"
     elif type == "video/webm" or type == "audio/webm":
         if not local_file.endswith(".webm"):
-            local_file = local_file + ".webm"
+            local_file += ".webm"
     elif type == "audio/mpeg":
         if not local_file.endswith(".mp3"):
-            local_file = local_file + ".mp3"
+            local_file += ".mp3"
     elif type == "audio/ogg" or type == "video/ogg" or type == "audio/vorbis":
         if not local_file.endswith(".ogg"):
-            local_file = local_file + ".ogg"
+            local_file += ".ogg"
     elif type == "audio/x-ms-wma" or type == "audio/x-ms-wax":
         if not local_file.endswith(".wma"):
-            local_file = local_file + ".wma"
+            local_file += ".wma"
     if os.path.exists(local_file):
         return 0
     else:
