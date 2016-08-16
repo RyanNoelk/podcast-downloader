@@ -10,5 +10,6 @@ MODE_MAIL_ADD = 76
 MODE_MAIL_DELETE = 77
 MODE_MAIL_LIST = 78
 
-DOWNLOAD_DIRECTORY = "/data/ryannoelk/files/podcasts"
+#DOWNLOAD_DIRECTORY = "/data/ryannoelk/files/podcasts"
+DOWNLOAD_DIRECTORY = "/Users/ryannoelk/code/podcast-downloader/podcasts"
 NUMBER_OF_PODCASTS_TO_KEEP = 5

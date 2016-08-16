@@ -31,16 +31,12 @@ from code.mailer import *
 def main(argv):
     mode = MODE_NONE
     has_error = 0
-    num_podcasts = 0
     error_string = ""
     feed_url = ""
-    feed_name = ""
     mail_address = ""
-    message = ""
     mail = ""
     current_directory = os.path.realpath(os.path.dirname(sys.argv[0]))
     download_directory = DOWNLOAD_DIRECTORY
-    download_directory = "/Users/ryannoelk/code/podcast-downloader/podcasts"
     total_items = 0
     total_size = 0
     data = ""
@@ -138,6 +134,8 @@ def main(argv):
                 except OSError:
                     print "Subscription directory has not been found - it might have been manually deleted" 
                 print "Subscription '" + feed_name + "' removed"
+        elif mode == MODE_SUBSCRIBE:
+            print iterate_feed(data, mode, download_directory, todays_date, cursor, connection, feed_url)
         elif mode == MODE_LIST:
             print "Listing current podcast subscriptions...\n"
             list_subscriptions(cursor, connection)

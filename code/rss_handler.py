@@ -37,7 +37,7 @@ def iterate_feed(data, mode, download_dir, today, cur, conn, feed):
     print "Iterating feed..."
     message = ""
     try:
-        xml_data = xml.dom.minidom.parseString(data)
+        xml_data = xml.dom.minidom.parse(data)
         for channel in xml_data.getElementsByTagName('channel'):
             channel_title = channel.getElementsByTagName('title')[0].firstChild.data
             channel_link = channel.getElementsByTagName('link')[0].firstChild.data
