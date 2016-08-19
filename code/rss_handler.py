@@ -60,10 +60,7 @@ class RssHandler:
     def update(self):
         message = ''
         print "Updating all podcast subscriptions..."
-        if self.feed:
-            subs = self.db.get_subscription(self.feed)
-        else:
-            subs = self.db.get_subscriptions()
+        subs = self.db.get_subscriptions()
         for sub in subs:
             channel_name = sub[0]
             self.feed = sub[1]

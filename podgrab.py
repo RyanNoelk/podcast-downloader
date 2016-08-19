@@ -39,7 +39,7 @@ def main(argv):
         RssHandler(arguments.unsub_url, db).unsubscribe()
     elif arguments.update_subs:
         # Update all rss feeds
-        RssHandler(arguments.update_subs, db).update()
+        RssHandler(db).update()
     elif arguments.list_subs:
         # List current podcast subscriptions
         db.list_subscriptions()
