@@ -97,6 +97,7 @@ class RssHandler:
                 print "Updating RSS feeds. Processing..."
                 podcasts = self._iterate_channel(channel, channel_directory)
                 self._save_podcasts(podcasts)
+                self._delete_old_podcasts(channel_directory)
                 message = str(len(podcasts)) + " have been downloaded from your subscription: '" + channel_title + "'\n"
         except xml.parsers.expat.ExpatError:
             print "ERROR - Malformed XML syntax in feed. Skipping..."
@@ -182,7 +183,7 @@ class RssHandler:
             'audio/x-ms-wax': '.wma',
         }
 
-        podcasts = sorted(podcasts, key=itemgetter('date'), reverse=True)
+        podcasts = sorted(podcasts, key=itemgetter('date'))
 
         for podcast in podcasts:
             (item_path, item_file_name) = os.path.split(podcast['file'])
@@ -205,7 +206,7 @@ class RssHandler:
                     print "ERROR - Could not write item to file: ", e
                 except socket.error as e:
                     print "ERROR - Socket reset by peer: ", e
-
+        print podcasts
         self.db.update_subscription(self.feed, podcasts[-1]['date'])
 
     def _delete_old_podcasts(self, channel_dir):
@@ -221,7 +222,7 @@ class RssHandler:
         split_array = date.split(' ')
         for i in range(0, 5):
             new_date = new_date + split_array[i] + " "
-        return datetime.datetime.strptime(new_date, "%a, %d %b %Y %H:%M:%S").strftime('%s')
+        return datetime.datetime.strptime(new_date[:-1], "%a, %d %b %Y %H:%M:%S").strftime('%s')
 
     def _int_to_date(self, date):
         return datetime.datetime.fromtimestamp(date).strftime("%a, %d %b %Y %H:%M:%S")
