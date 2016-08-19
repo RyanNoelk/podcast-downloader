@@ -1,15 +1,10 @@
 #!/usr/bin/env python
 
-MODE_NONE = 70
-MODE_SUBSCRIBE = 71
-MODE_UNSUBSCRIBE = 73
-MODE_LIST = 74
-MODE_UPDATE = 75
+import sys
+import os
 
-MODE_MAIL_ADD = 76
-MODE_MAIL_DELETE = 77
-MODE_MAIL_LIST = 78
-
+CURRENT_DIRECTORY = os.path.realpath(os.path.dirname(sys.argv[0]))
+DB_NAME = "PodGrab.db"
 #DOWNLOAD_DIRECTORY = "/data/ryannoelk/files/podcasts"
 DOWNLOAD_DIRECTORY = "/Users/ryannoelk/code/podcast-downloader/podcasts"
-NUMBER_OF_PODCASTS_TO_KEEP = 5
+NUMBER_OF_PODCASTS_TO_KEEP = 3
