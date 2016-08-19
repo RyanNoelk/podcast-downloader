@@ -128,7 +128,7 @@ class RssHandler:
                 except (TypeError, ValueError):
                     item_time = 0
 
-                if item_time >= last_ep_date and num < settings.NUMBER_OF_PODCASTS_TO_KEEP:
+                if item_time > last_ep_date and num < settings.NUMBER_OF_PODCASTS_TO_KEEP:
                     podcasts.append({
                         'title': item.getElementsByTagName('title')[0].firstChild.data,
                         'file':  item.getElementsByTagName('enclosure')[0].getAttribute('url'),
@@ -182,32 +182,32 @@ class RssHandler:
             'audio/x-ms-wma': '.wma',
             'audio/x-ms-wax': '.wma',
         }
+        if podcasts:
+            podcasts = sorted(podcasts, key=itemgetter('date'))
 
-        podcasts = sorted(podcasts, key=itemgetter('date'))
-
-        for podcast in podcasts:
-            (item_path, item_file_name) = os.path.split(podcast['file'])
-            if len(item_file_name) > 50:
-                item_file_name = item_file_name[:50]
-            today = datetime.date.today()
-            item_file_name = today.strftime("%Y/%m/%d") + item_file_name
-            local_file = podcast['dir'] + os.sep + slugify(item_file_name)
-            if extension_map[podcast['type']]:
-                if not local_file.endswith(extension_map[podcast['type']]):
-                    local_file += extension_map[podcast['type']]
-            if not os.path.exists(local_file):
-                print "\nDownloading " + item_file_name
-                try:
-                    item_file = urllib2.urlopen(podcast['file'])
-                    with open(local_file, 'wb') as output:
-                        output.write(item_file.read())
-                    print "Podcast: ", podcast['file'], " downloaded to: ", local_file
-                except urllib2.URLError as e:
-                    print "ERROR - Could not write item to file: ", e
-                except socket.error as e:
-                    print "ERROR - Socket reset by peer: ", e
-        print podcasts
-        self.db.update_subscription(self.feed, podcasts[-1]['date'])
+            for podcast in podcasts:
+                (item_path, item_file_name) = os.path.split(podcast['file'])
+                if len(item_file_name) > 50:
+                    item_file_name = item_file_name[:50]
+                today = datetime.date.today()
+                item_file_name = today.strftime("%Y/%m/%d") + item_file_name
+                local_file = podcast['dir'] + os.sep + slugify(item_file_name)
+                if extension_map[podcast['type']]:
+                    if not local_file.endswith(extension_map[podcast['type']]):
+                        local_file += extension_map[podcast['type']]
+                if not os.path.exists(local_file):
+                    print "\nDownloading " + item_file_name
+                    try:
+                        item_file = urllib2.urlopen(podcast['file'])
+                        with open(local_file, 'wb') as output:
+                            output.write(item_file.read())
+                        print "Podcast: ", podcast['file'], " downloaded to: ", local_file
+                    except urllib2.URLError as e:
+                        print "ERROR - Could not write item to file: ", e
+                    except socket.error as e:
+                        print "ERROR - Socket reset by peer: ", e
+            print podcasts
+            self.db.update_subscription(self.feed, podcasts[-1]['date'])
 
     def _delete_old_podcasts(self, channel_dir):
         os.chdir(channel_dir)
@@ -222,7 +222,7 @@ class RssHandler:
         split_array = date.split(' ')
         for i in range(0, 5):
             new_date = new_date + split_array[i] + " "
-        return datetime.datetime.strptime(new_date[:-1], "%a, %d %b %Y %H:%M:%S").strftime('%s')
+        return int(datetime.datetime.strptime(new_date[:-1], "%a, %d %b %Y %H:%M:%S").strftime('%s'))
 
     def _int_to_date(self, date):
         return datetime.datetime.fromtimestamp(date).strftime("%a, %d %b %Y %H:%M:%S")
