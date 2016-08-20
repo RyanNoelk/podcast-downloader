@@ -1,13 +1,9 @@
 #!/usr/bin/env python
 
-import smtplib
-import platform
 import traceback
-
 from email.mime.text import MIMEText
 from email.header import Header
-from smtplib import SMTP_SSL
-import os
+from smtplib import SMTP_SSL, SMTPException
 
 from settings import FROM_EMAIL_ADDRESS
 from local_settings import EMAIL_PASSWORD
@@ -16,12 +12,6 @@ from local_settings import EMAIL_PASSWORD
 def mail_updates(body, addresses):
     if addresses:
         subject = "PodGrab Update"
-        '''
-        if int(num_updates) > 0:
-            subject += " - NEW updates!"
-        else:
-            subject += " - nothing new..."
-        '''
 
         for address in addresses:
             try:
@@ -35,6 +25,5 @@ def mail_updates(body, addresses):
                 server.quit()
 
                 print "Successfully sent podcast updates e-mail to: " + address[0]
-            except smtplib.SMTPException:
+            except SMTPException:
                 traceback.print_exc()
-                print "Could not send podcast updates e-mail to: " + address[0]
