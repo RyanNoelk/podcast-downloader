@@ -4,27 +4,35 @@ import smtplib
 import platform
 import traceback
 
+from email.mime.text import MIMEText
+from email.header import Header
+from smtplib import SMTP_SSL
+import os
 
-def mail_updates(mess, addresses):
+from settings import FROM_EMAIL_ADDRESS
+from local_settings import EMAIL_PASSWORD
+
+
+def mail_updates(body, addresses):
     if addresses:
-        subject_line = "PodGrab Update"
+        subject = "PodGrab Update"
         '''
         if int(num_updates) > 0:
-            subject_line += " - NEW updates!"
+            subject += " - NEW updates!"
         else:
-            subject_line += " - nothing new..."
+            subject += " - nothing new..."
         '''
 
         for address in addresses:
             try:
-                headers = "From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n" % \
-                        ('podgrab@' + platform.node(), address[0], subject_line)
-                message = headers + mess
-                mail_server = smtplib.SMTP('smtp.gmail.com:587')
-                mail_server.ehlo()
-                mail_server.starttls()
-                mail_server.sendmail('podgrab@' + platform.node(), address[0], message)
-                mail_server.quit()
+                message = MIMEText(body, _charset="UTF-8")
+                message['Subject'] = Header(subject, "utf-8")
+
+                server = SMTP_SSL(u'smtp.gmail.com:465')
+                server.ehlo()
+                server.login(FROM_EMAIL_ADDRESS, EMAIL_PASSWORD)
+                server.sendmail(FROM_EMAIL_ADDRESS, address, message.as_string())
+                server.quit()
 
                 print "Successfully sent podcast updates e-mail to: " + address[0]
             except smtplib.SMTPException:

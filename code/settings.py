@@ -1,8 +1,10 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 import sys
 import os
 
+FROM_EMAIL_ADDRESS = "ichbinsub@gmail.com"
 CURRENT_DIRECTORY = os.path.realpath(os.path.dirname(sys.argv[0]))
 DB_NAME = "PodGrab.db"
 #DOWNLOAD_DIRECTORY = "/data/ryannoelk/files/podcasts"
