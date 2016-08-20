@@ -62,15 +62,6 @@ class DbHandler:
         except sqlite3.OperationalError:
             print "There are no current subscriptions or there was an error"
 
-    def get_subscription(self, feed):
-        try:
-            row = (feed,)
-            self.cursor.execute('SELECT * FROM subscriptions WHERE feed = ?', row)
-            return self.cursor.fetchall()
-        except sqlite3.OperationalError:
-            print "There are no current subscriptions"
-            return None
-
     def get_subscriptions(self):
         try:
             self.cursor.execute('SELECT * FROM subscriptions')

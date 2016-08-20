@@ -32,15 +32,11 @@ class RssHandler:
                 print "Download directory '" + settings.DOWNLOAD_DIRECTORY + "' created"
             except OSError:
                 exit("Could not create podcast download sub-directory!")
-        else:
-            print "Download directory exists: '" + settings.DOWNLOAD_DIRECTORY + "'"
 
     def subscribe(self):
         data = self._open_data_source()
         if data is None or not data:
             exit("Not a valid XML file or URL feed!")
-        else:
-            print "XML data source opened\n"
         print self._iterate_feed(data)
 
     def unsubscribe(self):
@@ -219,8 +215,11 @@ class RssHandler:
         new_date = ""
         split_array = date.split(' ')
         for i in range(0, 5):
-            new_date = new_date + split_array[i] + " "
-        return int(datetime.datetime.strptime(new_date[:-1], "%a, %d %b %Y %H:%M:%S").strftime('%s'))
+            new_date += split_array[i] + " "
+        if new_date:
+            return int(datetime.datetime.strptime(new_date[:-1], "%a, %d %b %Y %H:%M:%S").strftime('%s'))
+        else:
+            return 0
 
     def _int_to_date(self, date):
         return datetime.datetime.fromtimestamp(date).strftime("%a, %d %b %Y %H:%M:%S")
