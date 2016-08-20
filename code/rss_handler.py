@@ -41,7 +41,7 @@ class RssHandler:
 
     def unsubscribe(self):
         feed_name = self.db.get_name_from_feed(self.feed)
-        if feed_name == "None":
+        if feed_name is None or not feed_name:
             print "Feed does not exist in the database! Skipping..."
         else:
             feed_name = slugify(feed_name)

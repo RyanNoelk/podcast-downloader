@@ -29,7 +29,7 @@ def main(argv):
                         help='Lists all current mail addresses')
     arguments = parser.parse_args()
 
-    # Spin up the Db class that we will use for the live of the program
+    # Spin up the Db class that we will use for the life of the program
     db = DbHandler()
     
     if arguments.sub_feed_url:
