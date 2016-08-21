@@ -11,6 +11,9 @@ import settings
 class DbHandler:
 
     def __init__(self):
+        """
+        Creates a connection to a database. If the database doesn't exist, this will create one.
+        """
         if os.path.exists(settings.CURRENT_DIRECTORY + os.sep + settings.DB_NAME):
             self.conn = sqlite3.connect(settings.CURRENT_DIRECTORY + os.sep + "PodGrab.db")
             if not self.conn:
