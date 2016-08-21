@@ -19,12 +19,18 @@ from mailer import mail_updates
 class RssHandler:
 
     def __init__(self, feed=None, db=None):
+        """
+        Setup the RSS handler.
+        :param feed: URL to the RSS feed
+        :param db: DB class object
+        """
         self.feed = feed
         if db:
             self.db = db
         else:
             self.db = DbHandler()
 
+        # Create the base DOWNLOAD_DIRECTORY as found in settings if it has not been created yet.
         if not os.path.exists(settings.DOWNLOAD_DIRECTORY):
             print "Podcast download directory is missing. Creating: '" + settings.DOWNLOAD_DIRECTORY + "'"
             try:
@@ -34,19 +40,29 @@ class RssHandler:
                 exit("Could not create podcast download sub-directory!")
 
     def subscribe(self):
+        """
+        Subscribe to a podcast. Then download the first x number of episodes as defined in the settings.
+        """
         data = self._open_data_source()
         if data is None or not data:
             exit("Not a valid XML file or URL feed!")
-        print self._iterate_feed(data)
+        podcasts = self._iterate_feed(data)
+        if podcasts:
+            self._save_podcasts(podcasts)
+            print self._delete_old_podcasts(podcasts[0]['dir'])
+        else:
+            pass
 
     def unsubscribe(self):
+        """
+        Delete a subscription. Remove it from the database and delete all podcasts the its dir.
+        """
         feed_name = self.db.get_name_from_feed(self.feed)
         if feed_name is None or not feed_name:
-            print "Feed does not exist in the database! Skipping..."
+            print "Feed does not exist in the database!"
         else:
             feed_name = slugify(feed_name)
             channel_directory = settings.DOWNLOAD_DIRECTORY + os.sep + feed_name
-            print "Deleting '" + channel_directory + "'..."
             self.db.delete_subscription(self.feed)
             try:
                 shutil.rmtree(channel_directory)
@@ -55,6 +71,10 @@ class RssHandler:
             print "Subscription '" + feed_name + "' removed"
 
     def update(self):
+        """
+        Update and loop through all subscriptions.
+        Then download the first x number of episodes as defined in the settings.
+        """
         message = ''
         print "Updating all podcast subscriptions..."
         subs = self.db.get_subscriptions()
@@ -68,75 +88,62 @@ class RssHandler:
             if not data:
                 print "'" + channel_name + "' for '" + self.feed.encode("utf-8") + "' is not a valid feed URL!"
             else:
-                message += self._iterate_feed(data)
-                print message
+                podcasts = self._iterate_feed(data)
+                if podcasts:
+                    self._save_podcasts(podcasts)
+                    self._delete_old_podcasts(podcasts[0]['dir'])
         if self.db.has_mail_users():
             print "Have e-mail address(es) - attempting e-mail..."
+            message = "0 podcasts have been downloaded from this feed due to RSS syntax problems. " \
+                      "Please try again later"
             mail_updates(message, self.db.get_mail_users())
 
     def _iterate_feed(self, data):
-        message = ''
-        print "Iterating feed..."
-        try:
-            xml_data = xml.dom.minidom.parse(data)
-            for channel in xml_data.getElementsByTagName('channel'):
-                channel_title = channel.getElementsByTagName('title')[0].firstChild.data
-                channel_link = channel.getElementsByTagName('link')[0].firstChild.data
-                print "Channel Title: ===" + channel_title + "==="
-                print "Channel Link: " + channel_link
-                channel_title = slugify(channel_title)
-                channel_directory = settings.DOWNLOAD_DIRECTORY + os.sep + channel_title
-                if not os.path.exists(channel_directory):
-                    os.makedirs(channel_directory)
-                print "Updating RSS feeds. Processing..."
-                podcasts = self._iterate_channel(channel, channel_directory)
-                self._save_podcasts(podcasts)
-                self._delete_old_podcasts(channel_directory)
-                message = str(len(podcasts)) + " have been downloaded from your subscription: '" + channel_title + "'\n"
-        except xml.parsers.expat.ExpatError:
-            print "ERROR - Malformed XML syntax in feed. Skipping..."
-            message = "0 podcasts have been downloaded from this feed due to RSS syntax problems. Please try again later"
-        except UnicodeEncodeError:
-            print "ERROR - Unicoce encoding error in string. Cannot convert to ASCII. Skipping..."
-            message = "0 podcasts have been downloaded from this feed due to RSS syntax problems. Please try again later"
-        return message
-
-    def _iterate_channel(self, channel, channel_dir):
-        num = 0
         last_ep_date = 0
         podcasts = []
-        print "Iterating channel..."
-        if self.db.does_sub_exist(self.feed):
-            last_ep_date = self.db.get_last_subscription_downloaded(self.feed)
-        else:
-            self.db.insert_subscription(
-                slugify(channel.getElementsByTagName('title')[0].firstChild.data),
-                self.feed
-            )
-        for item in channel.getElementsByTagName('item'):
+        try:
+            xml_data = xml.dom.minidom.parse(data).getElementsByTagName('channel')[0]
+            channel_title = slugify(xml_data.getElementsByTagName('title')[0].firstChild.data)
+            # Build the channel dir and create it if it doesn't exist
+            channel_directory = settings.DOWNLOAD_DIRECTORY + os.sep + channel_title
+            if not os.path.exists(channel_directory):
+                os.makedirs(channel_directory)
+
+            # Fetch the last episode date, or
+            # Create a DB entry if the subscription doesn't exist
+            if self.db.does_sub_exist(self.feed):
+                last_ep_date = self.db.get_last_subscription_downloaded(self.feed)
+            else:
+                self.db.insert_subscription(channel_title, self.feed)
+
+            # Iterate though each item (podcast) in the xml_data
             try:
-                try:
+                for item in xml_data.getElementsByTagName('item'):
+                    # Get and convert the date of the current podcast
                     item_time = self._date_to_int(
                         item.getElementsByTagName('pubDate')[0].firstChild.data
                     )
-                except (TypeError, ValueError):
-                    item_time = 0
 
-                if item_time > last_ep_date and num < settings.NUMBER_OF_PODCASTS_TO_KEEP:
-                    podcasts.append({
-                        'title': item.getElementsByTagName('title')[0].firstChild.data,
-                        'file':  item.getElementsByTagName('enclosure')[0].getAttribute('url'),
-                        'dir':   channel_dir,
-                        'type':  item.getElementsByTagName('enclosure')[0].getAttribute('type'),
-                        'size':  item.getElementsByTagName('enclosure')[0].getAttribute('length'),
-                        'date':  item_time
-                    })
-                    print item.getElementsByTagName('title')[0].firstChild.data
-                    num += 1
-                else:
-                    return podcasts
+                    # If current podcast date > the last episode date, and
+                    # The number of podcasts from the settings > number of current podcasts downloaded
+                    # Add the current podcast to the list
+                    if item_time > last_ep_date and settings.NUMBER_OF_PODCASTS_TO_KEEP+2 > len(podcasts):
+                        podcasts.append({
+                            'title': item.getElementsByTagName('title')[0].firstChild.data,
+                            'file': item.getElementsByTagName('enclosure')[0].getAttribute('url'),
+                            'dir': channel_directory,
+                            'type': item.getElementsByTagName('enclosure')[0].getAttribute('type'),
+                            'size': item.getElementsByTagName('enclosure')[0].getAttribute('length'),
+                            'date': item_time
+                        })
+                    else:
+                        break
             except (TypeError, ValueError):
                 print "This item has a badly formatted date. Cannot download!"
+        except xml.parsers.expat.ExpatError:
+            print "ERROR - Malformed XML syntax in feed. Skipping..."
+        except UnicodeEncodeError:
+            print "ERROR - Unicode encoding error in string. Cannot convert to ASCII. Skipping..."
         return podcasts
 
     def _open_data_source(self):
@@ -226,12 +233,16 @@ class RssHandler:
         Delete all old podcasts from a given dir. Following then NUMBER_OF_PODCASTS_TO_KEEP in settings.
         :param channel_dir: The dir where the podcasts live
         """
+        message = "Deleted Files: \n"
         os.chdir(channel_dir)
         files = sorted(os.listdir(os.getcwd()), key=os.path.getmtime)
+        print files
         if len(files) <= settings.NUMBER_OF_PODCASTS_TO_KEEP:
-            return
-        for old_file in files[:settings.NUMBER_OF_PODCASTS_TO_KEEP-1]:
+            return "No files to delete"
+        for old_file in files[:len(files) - settings.NUMBER_OF_PODCASTS_TO_KEEP]:
             os.remove(old_file)
+            message += old_file + "\n"
+        return message
 
     def _date_to_int(self, date):
         """
