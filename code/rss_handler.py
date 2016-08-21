@@ -140,6 +140,10 @@ class RssHandler:
         return podcasts
 
     def _open_data_source(self):
+        """
+        Try and open the feed (self.feed) as as declared in init or update.
+        :return: the data feed or None if there was a problem
+        """
         try:
             response = urllib2.urlopen(self.feed)
         except ValueError:
@@ -160,6 +164,16 @@ class RssHandler:
             return response
 
     def _save_podcasts(self, podcasts):
+        """
+        Given a list of podcasts, save the podcasts to the file system.
+        :param podcasts:
+            'title': title of the podcast,
+            'file':  URL where the podcast can be downloaded,
+            'dir':   The dir to save the podcast at,
+            'type':  file type of the podcast,
+            'size':  byte size of the podcast,
+            'date':  date the podcast was uploaded
+        """
         extension_map = {
             'video/quicktime': '.mp4',
             'audio/mp4': '.mp4',
@@ -177,33 +191,41 @@ class RssHandler:
             'audio/x-ms-wax': '.wma',
         }
         if podcasts:
+            # Sort the podcasts so the oldest one is saved first.
+            # This allows us to use the file system time for tracking which podcast is the oldest.
             podcasts = sorted(podcasts, key=itemgetter('date'))
 
             for podcast in podcasts:
+                # Get the file name (we don't use the path right now)
                 (item_path, item_file_name) = os.path.split(podcast['file'])
+                # Limit the file name to onl the first 50 chars
                 if len(item_file_name) > 50:
                     item_file_name = item_file_name[:50]
-                today = datetime.date.today()
-                item_file_name = today.strftime("%Y/%m/%d") + item_file_name
+                # Build the local file
                 local_file = podcast['dir'] + os.sep + slugify(item_file_name)
+                # Make sure the file has the correct extension
                 if extension_map[podcast['type']]:
                     if not local_file.endswith(extension_map[podcast['type']]):
                         local_file += extension_map[podcast['type']]
+                # If the file isn't already there, try and save it
                 if not os.path.exists(local_file):
                     print "\nDownloading " + item_file_name
                     try:
                         item_file = urllib2.urlopen(podcast['file'])
                         with open(local_file, 'wb') as output:
                             output.write(item_file.read())
-                        print "Podcast: ", podcast['file'], " downloaded to: ", local_file
+                        print "Podcast downloaded to: ", local_file
                     except urllib2.URLError as e:
                         print "ERROR - Could not write item to file: ", e
                     except socket.error as e:
                         print "ERROR - Socket reset by peer: ", e
-            print podcasts
             self.db.update_subscription(self.feed, podcasts[-1]['date'])
 
     def _delete_old_podcasts(self, channel_dir):
+        """
+        Delete all old podcasts from a given dir. Following then NUMBER_OF_PODCASTS_TO_KEEP in settings.
+        :param channel_dir: The dir where the podcasts live
+        """
         os.chdir(channel_dir)
         files = sorted(os.listdir(os.getcwd()), key=os.path.getmtime)
         if len(files) <= settings.NUMBER_OF_PODCASTS_TO_KEEP:
@@ -212,6 +234,11 @@ class RssHandler:
             os.remove(old_file)
 
     def _date_to_int(self, date):
+        """
+        Convert a date (%a, %d %b %Y %H:%M:%S) to an int
+        :param date: date
+        :return: seconds since epoch
+        """
         new_date = ""
         split_array = date.split(' ')
         for i in range(0, 5):
@@ -222,4 +249,9 @@ class RssHandler:
             return 0
 
     def _int_to_date(self, date):
+        """
+        Convert a int (seconds since epoch) to a date
+        :param date: seconds since epoch
+        :return: date
+        """
         return datetime.datetime.fromtimestamp(date).strftime("%a, %d %b %Y %H:%M:%S")
