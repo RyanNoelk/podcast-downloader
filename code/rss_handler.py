@@ -84,11 +84,13 @@ class RssHandler:
             self.feed = sub[1]
             data = self._open_data_source()
             if data:
-                message += "Feed for subscription: '" + channel_name + "' is updating..."
+                message += "Feed for subscription: '" + channel_name + "' is updating...\n"
                 podcasts = self._iterate_feed(data)
                 if podcasts:
                     message += self._save_podcasts(podcasts)
                     message += self._delete_old_podcasts(podcasts[0]['dir'])
+                else:
+                    message += "No podcasts to update.\n"
         if self.db.has_mail_users():
             mail_updates(message, self.db.get_mail_users())
         print message
