@@ -194,7 +194,7 @@ class RssHandler:
 
             for podcast in podcasts:
                 # Get the file name (we don't use the path right now)
-                (item_path, item_file_name) = os.path.split(podcast['title'])
+                item_file_name = podcast['title']
                 # Limit the file name to onl the first 50 chars
                 if len(item_file_name) > 50:
                     item_file_name = item_file_name[:50]
