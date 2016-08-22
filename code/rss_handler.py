@@ -194,7 +194,7 @@ class RssHandler:
 
             for podcast in podcasts:
                 # Get the file name (we don't use the path right now)
-                (item_path, item_file_name) = os.path.split(podcast['file'])
+                (item_path, item_file_name) = os.path.split(podcast['title'])
                 # Limit the file name to onl the first 50 chars
                 if len(item_file_name) > 50:
                     item_file_name = item_file_name[:50]
@@ -208,12 +208,12 @@ class RssHandler:
                 if not os.path.exists(local_file):
                     # TODO: This print will need to get removed at some point
                     # But its nice for CLI usage, so it can stay for now.
-                    print "Downloading " + slugify(item_file_name)
+                    print "Downloading " + podcast['title']
                     try:
                         item_file = urllib2.urlopen(podcast['file'])
                         with open(local_file, 'wb') as output:
                             output.write(item_file.read())
-                            message += "Downloaded Podcast: " + slugify(item_file_name) + "\n"
+                            message += "Downloaded Podcast: " + podcast['title'] + "\n"
                     except urllib2.URLError as e:
                         message += "ERROR - Could not write item to file: ", e
                     except socket.error as e:
