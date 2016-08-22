@@ -3,9 +3,10 @@
 
 import os
 import sqlite3
+
 from slugify import slugify
 
-import settings
+from code.settings import settings
 
 
 class DbHandler:

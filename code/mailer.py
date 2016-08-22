@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 
 import traceback
-from email.mime.text import MIMEText
 from email.header import Header
+from email.mime.text import MIMEText
 from smtplib import SMTP_SSL, SMTPException
 
-from settings import FROM_EMAIL_ADDRESS
 from local_settings import EMAIL_PASSWORD
+
+from code.settings.settings import FROM_EMAIL_ADDRESS
 
 
 def mail_updates(body, addresses):

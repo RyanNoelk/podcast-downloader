@@ -1,18 +1,19 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import urllib2
-import xml.dom.minidom
 import datetime
 import httplib
-import socket
 import os
 import shutil
-from slugify import slugify
+import socket
+import urllib2
+import xml.dom.minidom
 from operator import itemgetter
 
-import settings
+from slugify import slugify
+
 from code.db_handler import DbHandler
+from code.settings import settings
 from mailer import mail_updates
 
 
