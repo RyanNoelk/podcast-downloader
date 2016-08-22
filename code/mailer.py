@@ -5,9 +5,7 @@ from email.header import Header
 from email.mime.text import MIMEText
 from smtplib import SMTP_SSL, SMTPException
 
-from local_settings import EMAIL_PASSWORD
-
-from code.settings.settings import FROM_EMAIL_ADDRESS
+from code.settings.settings import FROM_EMAIL_ADDRESS, EMAIL_PASSWORD
 
 
 def mail_updates(body, addresses):
