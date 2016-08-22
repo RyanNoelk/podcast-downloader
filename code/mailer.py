@@ -14,6 +14,8 @@ def mail_updates(body, addresses):
 
         for address in addresses:
             try:
+                if body is None or body == "":
+                    body = "There are no new updates."
                 message = MIMEText(body, _charset="UTF-8")
                 message['Subject'] = Header(subject, "utf-8")
 
