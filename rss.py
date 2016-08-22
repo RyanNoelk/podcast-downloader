@@ -54,7 +54,7 @@ def main(argv):
         # Print the mail list
         db.list_mail_addresses()
     else:
-        exit("No Arguments supplied - for usage run 'PodGrab.py -h'")
+        exit("No Arguments supplied - for usage run 'rss.py -h'")
 
 if __name__ == "__main__":
     main(sys.argv[1:])

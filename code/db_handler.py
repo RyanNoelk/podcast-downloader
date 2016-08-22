@@ -16,16 +16,16 @@ class DbHandler:
         Creates a connection to a database. If the database doesn't exist, this will create one.
         """
         if os.path.exists(settings.CURRENT_DIRECTORY + os.sep + settings.DB_NAME):
-            self.conn = sqlite3.connect(settings.CURRENT_DIRECTORY + os.sep + "PodGrab.db")
+            self.conn = sqlite3.connect(settings.CURRENT_DIRECTORY + os.sep + settings.DB_NAME)
             if not self.conn:
-                exit("Could not connect to PodGrab database file!")
+                exit("Could not connect to podcast database file!")
             else:
                 self.cursor = self.conn.cursor()
         else:
-            print "PodGrab database missing. Creating..."
-            self.conn = sqlite3.connect(settings.CURRENT_DIRECTORY + os.sep + "PodGrab.db")
+            print "Podcast database missing. Creating..."
+            self.conn = sqlite3.connect(settings.CURRENT_DIRECTORY + os.sep + settings.DB_NAME)
             if not self.conn:
-                exit("Could not create PodGrab database file!")
+                exit("Could not create podcast database file!")
             else:
                 self.cursor = self.conn.cursor()
                 self.cursor.execute("CREATE TABLE subscriptions (channel text, feed text, last_ep int)")

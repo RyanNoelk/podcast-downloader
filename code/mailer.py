@@ -10,7 +10,7 @@ from code.settings.settings import FROM_EMAIL_ADDRESS, EMAIL_PASSWORD
 
 def mail_updates(body, addresses):
     if addresses:
-        subject = "PodGrab Update"
+        subject = "Podcast Updated"
 
         for address in addresses:
             try:
