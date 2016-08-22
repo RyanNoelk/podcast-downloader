@@ -43,15 +43,17 @@ class RssHandler:
         """
         Subscribe to a podcast. Then download the first x number of episodes as defined in the settings.
         """
+        message = ""
         data = self._open_data_source()
         if data is None or not data:
             exit("Not a valid XML file or URL feed!")
         podcasts = self._iterate_feed(data)
         if podcasts:
-            self._save_podcasts(podcasts)
-            print self._delete_old_podcasts(podcasts[0]['dir'])
-        else:
-            pass
+            message += self._save_podcasts(podcasts)
+            message += self._delete_old_podcasts(podcasts[0]['dir'])
+        if self.db.has_mail_users():
+            mail_updates(message, self.db.get_mail_users())
+        print message
 
     def unsubscribe(self):
         """
@@ -59,7 +61,7 @@ class RssHandler:
         """
         feed_name = self.db.get_name_from_feed(self.feed)
         if feed_name is None or not feed_name:
-            print "Feed does not exist in the database!"
+            exit("Feed does not exist in the database!")
         else:
             feed_name = slugify(feed_name)
             channel_directory = settings.DOWNLOAD_DIRECTORY + os.sep + feed_name
@@ -75,28 +77,20 @@ class RssHandler:
         Update and loop through all subscriptions.
         Then download the first x number of episodes as defined in the settings.
         """
-        message = ''
-        print "Updating all podcast subscriptions..."
-        subs = self.db.get_subscriptions()
-        for sub in subs:
+        message = ""
+        for sub in self.db.get_subscriptions():
             channel_name = sub[0]
             self.feed = sub[1]
-            channel_name.encode('utf-8')
-            self.feed.encode('utf-8')
-            print "Feed for subscription: '" + channel_name + "' from '" + self.feed + "' is updating..."
             data = self._open_data_source()
-            if not data:
-                print "'" + channel_name + "' for '" + self.feed.encode("utf-8") + "' is not a valid feed URL!"
-            else:
+            if data:
+                message += "Feed for subscription: '" + channel_name + "' is updating..."
                 podcasts = self._iterate_feed(data)
                 if podcasts:
-                    self._save_podcasts(podcasts)
-                    self._delete_old_podcasts(podcasts[0]['dir'])
+                    message += self._save_podcasts(podcasts)
+                    message += self._delete_old_podcasts(podcasts[0]['dir'])
         if self.db.has_mail_users():
-            print "Have e-mail address(es) - attempting e-mail..."
-            message = "0 podcasts have been downloaded from this feed due to RSS syntax problems. " \
-                      "Please try again later"
             mail_updates(message, self.db.get_mail_users())
+        print message
 
     def _iterate_feed(self, data):
         last_ep_date = 0
@@ -117,33 +111,33 @@ class RssHandler:
                 self.db.insert_subscription(channel_title, self.feed)
 
             # Iterate though each item (podcast) in the xml_data
-            try:
-                for item in xml_data.getElementsByTagName('item'):
-                    # Get and convert the date of the current podcast
-                    item_time = self._date_to_int(
-                        item.getElementsByTagName('pubDate')[0].firstChild.data
-                    )
+            for item in xml_data.getElementsByTagName('item'):
+                # Get and convert the date of the current podcast
+                item_time = self._date_to_int(
+                    item.getElementsByTagName('pubDate')[0].firstChild.data
+                )
 
-                    # If current podcast date > the last episode date, and
-                    # The number of podcasts from the settings > number of current podcasts downloaded
-                    # Add the current podcast to the list
-                    if item_time > last_ep_date and settings.NUMBER_OF_PODCASTS_TO_KEEP+2 > len(podcasts):
-                        podcasts.append({
-                            'title': item.getElementsByTagName('title')[0].firstChild.data,
-                            'file': item.getElementsByTagName('enclosure')[0].getAttribute('url'),
-                            'dir': channel_directory,
-                            'type': item.getElementsByTagName('enclosure')[0].getAttribute('type'),
-                            'size': item.getElementsByTagName('enclosure')[0].getAttribute('length'),
-                            'date': item_time
-                        })
-                    else:
-                        break
-            except (TypeError, ValueError):
-                print "This item has a badly formatted date. Cannot download!"
+                # If current podcast date > the last episode date, and
+                # The number of podcasts from the settings > number of current podcasts downloaded
+                # Add the current podcast to the list
+                if item_time > last_ep_date and settings.NUMBER_OF_PODCASTS_TO_KEEP > len(podcasts):
+                    podcasts.append({
+                        'title': item.getElementsByTagName('title')[0].firstChild.data,
+                        'file': item.getElementsByTagName('enclosure')[0].getAttribute('url'),
+                        'dir': channel_directory,
+                        'type': item.getElementsByTagName('enclosure')[0].getAttribute('type'),
+                        'size': item.getElementsByTagName('enclosure')[0].getAttribute('length'),
+                        'date': item_time
+                    })
+                else:
+                    break
+        except (TypeError, ValueError):
+            return "This item has a badly formatted date. Cannot download!"
         except xml.parsers.expat.ExpatError:
-            print "ERROR - Malformed XML syntax in feed. Skipping..."
+            return "ERROR - Malformed XML syntax in feed."
         except UnicodeEncodeError:
-            print "ERROR - Unicode encoding error in string. Cannot convert to ASCII. Skipping..."
+            return "ERROR - Unicode encoding error in string. Cannot convert to ASCII."
+
         return podcasts
 
     def _open_data_source(self):
@@ -156,14 +150,7 @@ class RssHandler:
         except ValueError:
             try:
                 response = open(self.feed, 'r')
-            except ValueError:
-                print "ERROR - Invalid feed!"
-                return None
-            except urllib2.URLError:
-                print "ERROR - Connection problems. Please try again later"
-                return None
-            except httplib.IncompleteRead:
-                print "ERROR - Incomplete data read. Please try again later"
+            except (ValueError, urllib2.URLError, httplib.IncompleteRead):
                 return None
         if not response:
             return response.read()
@@ -180,7 +167,9 @@ class RssHandler:
             'type':  file type of the podcast,
             'size':  byte size of the podcast,
             'date':  date the podcast was uploaded
+        :return: Message to display to user.
         """
+        message = ""
         extension_map = {
             'video/quicktime': '.mp4',
             'audio/mp4': '.mp4',
@@ -216,27 +205,31 @@ class RssHandler:
                         local_file += extension_map[podcast['type']]
                 # If the file isn't already there, try and save it
                 if not os.path.exists(local_file):
-                    print "\nDownloading " + item_file_name
+                    # TODO: This print will need to get removed at some point
+                    # But its nice for CLI usage, so it can stay for now.
+                    print "Downloading " + slugify(item_file_name)
                     try:
                         item_file = urllib2.urlopen(podcast['file'])
                         with open(local_file, 'wb') as output:
                             output.write(item_file.read())
-                        print "Podcast downloaded to: ", local_file
+                            message += "Downloaded Podcast: " + slugify(item_file_name) + "\n"
                     except urllib2.URLError as e:
-                        print "ERROR - Could not write item to file: ", e
+                        message += "ERROR - Could not write item to file: ", e
                     except socket.error as e:
-                        print "ERROR - Socket reset by peer: ", e
+                        message += "ERROR - Socket reset by peer: ", e
             self.db.update_subscription(self.feed, podcasts[-1]['date'])
+
+            return message
 
     def _delete_old_podcasts(self, channel_dir):
         """
         Delete all old podcasts from a given dir. Following then NUMBER_OF_PODCASTS_TO_KEEP in settings.
         :param channel_dir: The dir where the podcasts live
+        :return: Message to display to user.
         """
         message = "Deleted Files: \n"
         os.chdir(channel_dir)
         files = sorted(os.listdir(os.getcwd()), key=os.path.getmtime)
-        print files
         if len(files) <= settings.NUMBER_OF_PODCASTS_TO_KEEP:
             return "No files to delete"
         for old_file in files[:len(files) - settings.NUMBER_OF_PODCASTS_TO_KEEP]:
